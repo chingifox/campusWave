@@ -78,49 +78,6 @@ app.post('/createPost', upload.single('postImage'), async (req, res) => {
 });
 
 
-app.post('/createPost', upload.single('postImage'), async (req, res) => {
-  try {
-    const { postText, type, firebaseUID } = req.body;
-
-    if (!postText || postText.trim() === '') {
-      return res.status(400).json({ error: 'Post text is required' });
-    }
-
-    let imageUrl = '';
-
-    if (req.file) {
-      const base64Image = req.file.buffer.toString('base64');
-      const response = await axios.post(
-        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
-        new URLSearchParams({ image: base64Image }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
-      imageUrl = response.data.data.url;
-    }
-
-    // 🛑 Prevent creating lostfound post without an image
-    if (type === 'Lost & Found' && imageUrl === '') {
-      return res.status(400).json({ error: 'Lost and found posts require an image' });
-    }
-
-    const post = {
-      firebaseUID, 
-      text: postText,
-      type,
-      imageUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('posts').insertOne(post);
-    res.status(201).json({ message: 'Post created', post });
-
-  } catch (err) {
-    console.error('Error creating post:', err);
-    res.status(500).json({ error: 'Failed to create post' });
-  }
-});
-
-
 app.post('/createEvent', async (req, res) => {
   try {
     const {
