@@ -29,18 +29,14 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Upload Post API with optional image
+
+
 app.post('/createPost', upload.single('postImage'), async (req, res) => {
   try {
     const { postText, type, firebaseUID } = req.body;
 
     if (!postText || postText.trim() === '') {
       return res.status(400).json({ error: 'Post text is required' });
-    }
-
-    const user = await db.collection('users').findOne({ firebaseUID });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
     }
 
     let imageUrl = '';
@@ -61,7 +57,7 @@ app.post('/createPost', upload.single('postImage'), async (req, res) => {
     }
 
     const post = {
-      firebaseUID, // From MongoDB users collection
+      firebaseUID, 
       text: postText,
       type,
       imageUrl,
@@ -76,6 +72,7 @@ app.post('/createPost', upload.single('postImage'), async (req, res) => {
     res.status(500).json({ error: 'Failed to create post' });
   }
 });
+
 
 
 app.post('/createEvent', async (req, res) => {
