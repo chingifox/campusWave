@@ -32,46 +32,61 @@ const upload = multer({ storage });
 
 
 app.post('/createPost', upload.single('postImage'), async (req, res) => {
-  try {
-    const { postText, type, firebaseUID } = req.body;
-
-    if (!postText || postText.trim() === '') {
-      return res.status(400).json({ error: 'Post text is required' });
+    try {
+      const { postText, type, firebaseUID } = req.body;
+  
+      if (!postText || !type || !firebaseUID) {
+        return res.status(400).json({ status: 'error', error: 'All fields are required' });
+      }
+  
+      let imageUrl = '';
+  
+      // Check if image was uploaded
+      if (req.file) {
+        const base64Image = req.file.buffer.toString('base64');
+  
+        const imgbbResponse = await axios.post(
+          `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+          new URLSearchParams({ image: base64Image }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          }
+        );
+  
+        imageUrl = imgbbResponse.data.data.url;
+      }
+  
+      // Enforce image for Lost & Found posts
+      if (type === 'Lost & Found' && !imageUrl) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Lost and found posts require an image',
+        });
+      }
+  
+      const post = {
+        firebaseUID,
+        text: postText,
+        type,
+        imageUrl,
+        createdAt: new Date(),
+      };
+  
+      const result = await db.collection('posts').insertOne(post);
+      post._id = result.insertedId;
+  
+      res.status(201).json({
+        status: 'success',
+        post,
+      });
+    } catch (err) {
+      console.error('❌ Error creating post:', err);
+      res.status(500).json({ status: 'error', error: 'Failed to create post' });
     }
-
-    let imageUrl = '';
-
-    if (req.file) {
-      const base64Image = req.file.buffer.toString('base64');
-      const response = await axios.post(
-        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
-        new URLSearchParams({ image: base64Image }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
-      imageUrl = response.data.data.url;
-    }
-
-    // 🛑 Prevent creating lostfound post without an image
-    if (type === 'Lost & Found' && imageUrl === '') {
-      return res.status(400).json({ error: 'Lost and found posts require an image' });
-    }
-
-    const post = {
-      firebaseUID, 
-      text: postText,
-      type,
-      imageUrl,
-      createdAt: new Date()
-    };
-
-    await db.collection('posts').insertOne(post);
-    res.status(201).json({ message: 'Post created', post });
-
-  } catch (err) {
-    console.error('Error creating post:', err);
-    res.status(500).json({ error: 'Failed to create post' });
-  }
 });
+  
 
 
 
@@ -126,30 +141,29 @@ app.post('/createEvent', async (req, res) => {
 });
 
 
-app.post('/uploadDocument', async (req, res) => {
-  try {
-    const { name, type, url, firebaseUID } = req.body;
-
-    if (!name || !type || !url || !firebaseUID) {
-      return res.status(400).json({ error: 'All fields are required' });
+app.post('/createDocument', async (req, res) => {
+    try {
+      const { name, type, url, firebaseUID } = req.body;
+  
+      if (!name || !type || !url || !firebaseUID) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+  
+      const document = {
+        name,
+        url,
+        type,
+        firebaseUID,
+        createdAt: new Date()
+      };
+  
+      await db.collection('documents').insertOne(document);
+      res.status(201).json({ message: 'Document uploaded', document });
+    } catch (err) {
+      console.error('Error uploading document:', err);
+      res.status(500).json({ error: 'Failed to upload document' });
     }
-
-    const document = {
-      documentName: name,
-      documentLink: url,
-      documentType: type,
-      uploadedBy: firebaseUID,
-      createdAt: new Date()
-    };
-
-    await db.collection('documents').insertOne(document);
-    res.status(201).json({ message: 'Document uploaded', document });
-  } catch (err) {
-    console.error('Error uploading document:', err);
-    res.status(500).json({ error: 'Failed to upload document' });
-  }
-});
-
+  });
  
 app.get('/events', async (req, res) => {
   try {
