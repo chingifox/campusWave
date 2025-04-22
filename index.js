@@ -327,7 +327,7 @@ app.get('/profile', async (req, res) => {
 app.get('/documents', async (req, res) => {
   try {
     const documents = await db.collection('documents').find().toArray();
-    res.json(documents);
+    res.json({ document: documents });
   } catch (err) {
     console.error('Error fetching documents:', err);
     res.status(500).json({ error: 'Failed to fetch documents' });
